@@ -6,6 +6,7 @@ import {
 import { HttpLink } from 'apollo-link-http'
 import fetch from 'node-fetch'
 import { ApolloServer } from 'apollo-server'
+import { Binding } from 'graphql-binding'
 
 const createRemoteExecutableSchema = async (uri) => {
   const link = new HttpLink({
@@ -26,15 +27,32 @@ const linkTypeDefs = `
   extend type Term {
     user: User
   }
+  extend type Phrase {
+    user: User
+  }
+  extend type User {
+    terms: [Term]
+    phrases: [Phrase]
+  }
 `
 
+class ResourceBinding extends Binding {
+  constructor (schema) {
+    super({ schema })
+  }
+}
+
 const createNewSchema = async () => {
-  const userUri = 'https://us1.prisma.sh/playground/User/dev'
-  const termUri = 'https://eu1.prisma.sh/playground/Term/dev'
-  const phraseUri = 'https://us1.prisma.sh/playground/Phrase/dev'
-  const userSchema = await createRemoteExecutableSchema(userUri)
-  const termSchema = await createRemoteExecutableSchema(termUri)
-  const phraseSchema = await createRemoteExecutableSchema(phraseUri)
+  const userUri       = 'https://us1.prisma.sh/playground/User/dev'
+  const termUri       = 'https://eu1.prisma.sh/playground/Term/dev'
+  const phraseUri     = 'https://us1.prisma.sh/playground/Phrase/dev'
+  const userSchema    = await createRemoteExecutableSchema(userUri)
+  const termSchema    = await createRemoteExecutableSchema(termUri)
+  const phraseSchema  = await createRemoteExecutableSchema(phraseUri)
+  const userBinding   = new ResourceBinding(userSchema)
+  const termBinding   = new ResourceBinding(termSchema)
+  const phraseBinding = new ResourceBinding(phraseSchema)
+
   return mergeSchemas({
     schemas: [
       userSchema,
@@ -43,23 +61,49 @@ const createNewSchema = async () => {
       linkTypeDefs
     ],
     resolvers: {
+      User: {
+        terms: {
+          fragment: `... on User { id }`,
+          resolve: async (user, args, context, info) => {
+            let terms = await termBinding.query.terms(
+              {where: { userId: user.id }},
+              context,
+              info
+            )
+            return terms
+          }
+        },
+        phrases: {
+          fragment: `... on User { id }`,
+          resolve: async (user, args, context, info) => {
+            let phrases = await phraseBinding.query.phrases(
+              {where: { userId: user.id }},
+              context,
+              info
+            )
+            return phrases
+          }
+        }
+      },
       Term: {
         user: {
           fragment: `... on Term { userId }`,
-          resolve(term, args, context, info) {
-            console.log(term.userId)
-            return info.mergeInfo.delegateToSchema({
-              schema: termSchema,
-              operation: 'query',
-              fieldName: 'user',
-              args: {
-                where: {
-                  id: term.userId
-                }
-              },
+          resolve: async (term, args, context, info) => {
+            let user = await userBinding.query.user(
+              {where: {id: term.userId}},
               context,
               info
-            })
+            )
+            return user
+          }
+        }
+      },
+      Phrase: {
+        user: {
+          fragment: `... on Term { userId }`,
+          resolve: async (term, args, context, info) => {
+            let user = await userBinding.query.user({where: {id: term.userId}}, info)
+            return user
           }
         }
       }

@@ -1,0 +1,7 @@
+type Term {
+  id: ID! @unique
+  term: String!
+  meaning: String!
+  reading: String!
+  userId: ID!
+}

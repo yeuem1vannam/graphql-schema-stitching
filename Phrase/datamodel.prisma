@@ -1,0 +1,5 @@
+type Phrase {
+  id: ID! @unique
+  phrase: String!
+  userId: ID!
+}

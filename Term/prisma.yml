@@ -1,0 +1,6 @@
+endpoint: https://eu1.prisma.sh/playground/Term/dev
+datamodel: datamodel.prisma
+
+generate:
+  - generator: flow-client
+    output: ./generated/prisma-client/

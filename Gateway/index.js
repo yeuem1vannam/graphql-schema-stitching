@@ -115,7 +115,12 @@ const runServer = async () => {
   // Get newly merged schema
   const schema = await createNewSchema()
   // start server with the new schema
-  const server = new ApolloServer({ schema })
+  const server = new ApolloServer({
+    schema,
+    engine: {
+      apiKey: "service:yeuem1vannam-graphql-taro-test:8GVPNGAQaDZNBp4Lb_SUvw"
+    }
+  })
   server.listen().then(({url}) => {
     console.log(`Running at ${url}`)
   });

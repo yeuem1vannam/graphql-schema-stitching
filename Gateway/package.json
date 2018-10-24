@@ -18,6 +18,7 @@
     "start": "node -r esm index.js"
   },
   "devDependencies": {
+    "apollo": "^1.9.2",
     "esm": "^3.0.84"
   }
 }

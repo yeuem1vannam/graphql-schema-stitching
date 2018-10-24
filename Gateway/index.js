@@ -7,39 +7,63 @@ import { HttpLink } from 'apollo-link-http'
 import fetch from 'node-fetch'
 import { ApolloServer } from 'apollo-server'
 
-const graphqlApis = [{
-  uri: 'https://us1.prisma.sh/playground/User/dev'
-}, {
-  uri: 'https://us1.prisma.sh/playground/Phrase/dev'
-}, {
-  uri: 'https://eu1.prisma.sh/playground/Term/dev'
-}]
-
-const createRemoteExecutableSchemas = async () => {
-  let schemas = []
-  // iterate over all the the GraphQL APIs
-  for (let i = 0; i < graphqlApis.length; i++) {
-    // Create Apollo link with URI and headers of the GraphQL API
-    const link = new HttpLink({
-      uri: graphqlApis[i].uri,
-      fetch
-    })
-    // Introspect schema
-    const remoteSchema = await introspectSchema(link)
-    // Make remote executable schema
-    const remoteExecutableSchema = makeRemoteExecutableSchema({
-      schema: remoteSchema,
-      link
-    })
-    schemas.push(remoteExecutableSchema)
-  }
-  return schemas
+const createRemoteExecutableSchema = async (uri) => {
+  const link = new HttpLink({
+    uri: uri,
+    fetch
+  })
+  // Introspect schema
+  const remoteSchema = await introspectSchema(link)
+  // Make remote executable schema
+  const remoteExecutableSchema = makeRemoteExecutableSchema({
+    schema: remoteSchema,
+    link
+  })
+  return remoteExecutableSchema
 }
 
+const linkTypeDefs = `
+  extend type Term {
+    user: User
+  }
+`
+
 const createNewSchema = async () => {
-  const schemas = await createRemoteExecutableSchemas()
+  const userUri = 'https://us1.prisma.sh/playground/User/dev'
+  const termUri = 'https://eu1.prisma.sh/playground/Term/dev'
+  const phraseUri = 'https://us1.prisma.sh/playground/Phrase/dev'
+  const userSchema = await createRemoteExecutableSchema(userUri)
+  const termSchema = await createRemoteExecutableSchema(termUri)
+  const phraseSchema = await createRemoteExecutableSchema(phraseUri)
   return mergeSchemas({
-    schemas
+    schemas: [
+      userSchema,
+      termSchema,
+      phraseSchema,
+      linkTypeDefs
+    ],
+    resolvers: {
+      Term: {
+        user: {
+          fragment: `... on Term { userId }`,
+          resolve(term, args, context, info) {
+            console.log(term.userId)
+            return info.mergeInfo.delegateToSchema({
+              schema: termSchema,
+              operation: 'query',
+              fieldName: 'user',
+              args: {
+                where: {
+                  id: term.userId
+                }
+              },
+              context,
+              info
+            })
+          }
+        }
+      }
+    }
   })
 }
 

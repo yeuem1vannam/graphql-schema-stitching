@@ -67,7 +67,6 @@ const createNewSchema = async () => {
           resolve: async (user, args, context, info) => {
             let terms = await termBinding.query.terms(
               {where: { userId: user.id }},
-              context,
               info
             )
             return terms
@@ -78,7 +77,6 @@ const createNewSchema = async () => {
           resolve: async (user, args, context, info) => {
             let phrases = await phraseBinding.query.phrases(
               {where: { userId: user.id }},
-              context,
               info
             )
             return phrases
@@ -91,7 +89,6 @@ const createNewSchema = async () => {
           resolve: async (term, args, context, info) => {
             let user = await userBinding.query.user(
               {where: {id: term.userId}},
-              context,
               info
             )
             return user
@@ -100,9 +97,12 @@ const createNewSchema = async () => {
       },
       Phrase: {
         user: {
-          fragment: `... on Term { userId }`,
-          resolve: async (term, args, context, info) => {
-            let user = await userBinding.query.user({where: {id: term.userId}}, info)
+          fragment: `... on Phrase { userId }`,
+          resolve: async (phrase, args, context, info) => {
+            let user = await userBinding.query.user(
+              {where: {id: phrase.userId}},
+              info
+            )
             return user
           }
         }
